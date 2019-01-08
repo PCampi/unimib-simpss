@@ -1,0 +1,4 @@
+cassandra-driver
+lz4
+scales
+flask
