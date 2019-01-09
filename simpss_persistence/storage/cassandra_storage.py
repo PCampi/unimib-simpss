@@ -1,14 +1,14 @@
 """Storage class for Cassandra backend."""
 
 import logging
-from typing import Any, Dict, List, Tuple
 import warnings
+from typing import Any, Dict, List, Tuple
 
 from cassandra import cluster as cc
 
+from ..custom_logging import get_logger
+from ..pub_sub import Publisher, Subscriber
 from .base_storage import BaseStorage
-from pub_sub import Publisher, Subscriber
-from custom_logging import get_logger
 
 
 class CassandraStorage(BaseStorage, Subscriber):
@@ -30,7 +30,9 @@ class CassandraStorage(BaseStorage, Subscriber):
 
     def disconnect(self):
         """Disconnect gracefully."""
+        self.__logger.info("Disconnecting from cluster")
         self.session.shutdown()
+        self.__logger.info("Disconnected. Goodbye.")
 
     def create_database(self, db_name: str, replication: int):
         """
@@ -87,8 +89,10 @@ class CassandraStorage(BaseStorage, Subscriber):
         self.session.execute(query_string)
         self.__logger.info("Column family created")
 
-        # pylint: disable=E1120
         self._prepare_statement()
+
+    def set_keyspace(self, keyspace: str):
+        self.session.set_keyspace(keyspace)
 
     def insert_row(self, row: Dict[str, Any]):
         # TODO: ugly temporary warning workaround
@@ -117,7 +121,7 @@ class CassandraStorage(BaseStorage, Subscriber):
         query = query[:-2]  # delete last ', '
         query += ") VALUES ("
 
-        for _ in range(len(column_names)):
+        for _ in range(len(column_names) + 1):  # add 1 for the primary key
             query += "?, "
 
         query = query[:-2]  # delete last ', '
@@ -137,8 +141,6 @@ class CassandraStorage(BaseStorage, Subscriber):
         """
         Receive a message from the publisher to insert into Cassandra.
         """
-        # TODO: check message before sending it to Cassandra
-        # pylint: disable=E1120
         if not isinstance(message, dict):
             raise ValueError("Message should be a dict, got {} instead".format(
                 str(type(message))))

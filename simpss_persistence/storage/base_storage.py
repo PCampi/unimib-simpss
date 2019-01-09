@@ -1,10 +1,10 @@
 """Base storage interface file."""
 
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 
 
-class BaseStorage(ABCMeta):
+class BaseStorage(ABC):
     """
     This class should be used as an interface and subclassed
     by implementors.
