@@ -3,8 +3,8 @@ import json
 from typing import Any, Dict, List
 
 from confluent_kafka import Consumer, Message
-from custom_logging import get_logger
-from pub_sub import Publisher, Subscriber
+from ..custom_logging import get_logger
+from ..pub_sub import Publisher, Subscriber
 
 
 class KafkaConsumer(Publisher):
