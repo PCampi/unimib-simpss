@@ -7,24 +7,16 @@ import warnings
 from cassandra import cluster as cc
 
 from .base_storage import BaseStorage
+from pub_sub import Publisher, Subscriber
+from custom_logging import get_logger
 
 
-def get_logger(name: str):
-    """Get a logger to use in this class."""
-    logger = logging.getLogger(name=name)
-    logger.setLevel(logging.DEBUG)
-    console_handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(console_handler)
-    return logger
-
-
-class CassandraStorage(BaseStorage):
+class CassandraStorage(BaseStorage, Subscriber):
     """
     Cassandra storage implementation.
+
+    Subscribes to a Kafka consumer and sends the message
+    it receives to the Cassandra cluster.
     """
 
     def __init__(self, storage_addresses: List[str]):
@@ -105,17 +97,13 @@ class CassandraStorage(BaseStorage):
             category=ResourceWarning)
 
         # get the values from the row, using the expected column names
+        # use None if have missing data
         values_to_insert = tuple(
             row.get(column_name, None) for column_name in self.__columns)
-        self.session.execute(self.__statement, values_to_insert)
 
-    def receive(self, row: Dict[str, Any]):
-        """
-        Receive a message to insert into Cassandra.
-        Used for the Observer pattern with the Kafka producer.
-        """
-        # pylint: disable=E1120
-        self.insert_row(row)
+        self.__logger.info("Sending data to Cassandra")
+        self.session.execute(self.__statement, values_to_insert)
+        self.__logger.info("Data sent")
 
     def _prepare_statement(self):
         query = "INSERT INTO %s.%s (%s, " % (self.__keyspace, self.__table,
@@ -138,3 +126,20 @@ class CassandraStorage(BaseStorage):
         self.__logger.debug("Prepared statement is {}".format(query))
         self.__statement = self.session.prepare(query)
         self.__logger.info("Statement prepared successfully")
+
+    def set_name(self, name):
+        self.sub_name = name
+
+    def subscribe(self, publisher: Publisher):
+        publisher.add_subscriber(self, self.sub_name)
+
+    def receive(self, message):
+        """
+        Receive a message from the publisher to insert into Cassandra.
+        """
+        # TODO: check message before sending it to Cassandra
+        # pylint: disable=E1120
+        if not isinstance(message, dict):
+            raise ValueError("Message should be a dict, got {} instead".format(
+                str(type(message))))
+        self.insert_row(message)
