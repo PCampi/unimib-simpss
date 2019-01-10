@@ -2,6 +2,8 @@ version: '3'
 
 services: 
   cassandra:
+    build: ./cassandra-graphite
+    container_name: cassandra_graphite
     image: cassandra:3
     networks: 
       - cassandra-network
@@ -9,7 +11,47 @@ services:
       - "7000:7000"
       - "9042:9042"
       - "7199:7199"
+    depends_on: 
+      - graphite
+    volumes: 
+      - cassandra_volume
+  
+  graphite:
+    image: graphiteapp/docker-graphite-statsd:latest
+    container_name: graphite4cassandra
+    restart: always
+    ports: 
+      - 2003-2004:2003-2004
+      - 2023-2024:2023-2024
+      - 8080:8080
+      - 8125:8125
+      - 8126:8126
+    networks:
+      - cassandra-network
+    volumes: 
+      - graphite_volume
+  
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana4cassandra
+    restart: always
+    ports:
+      - 3000:3000
+    networks: 
+      - cassandra-network
+    volumes: 
+      - grafana_volume
+    depends_on: 
+      - graphite
 
 networks:
   cassandra-network:
     driver: bridge
+
+volumes: 
+  graphite_volume:
+    external: false
+  grafana_volume:
+    external: false
+  cassandra_volume:
+    external: false
