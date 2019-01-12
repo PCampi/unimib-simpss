@@ -2,7 +2,8 @@
 import json
 from typing import Any, Dict, List, Union
 
-from confluent_kafka import Consumer, Message
+from confluent_kafka import Consumer, KafkaError, Message
+
 from ..custom_logging import get_logger
 from ..pub_sub import Publisher, Subscriber
 
@@ -34,6 +35,9 @@ class KafkaConsumer(Publisher):
             'bootstrap.servers': bootstrap_servers,
             'group.id': group_id,
             'enable.auto.commit': True,
+            'default.topic.config': {
+                'auto.offset.reset': 'smallest'
+            },
         }
         self.kafka = Consumer(config)
 
@@ -57,15 +61,16 @@ class KafkaConsumer(Publisher):
                     valid_messages = []
                     # check every message, if ok send to Subscriber, else log error
                     for message in messages:
-                        if message.error():  # error receiving this message
-                            pass
-                            # self.__logger.error("Kafka error {}".format(
-                            #     message.error().str()))
+                        err = message.error()
+                        if err:  # error receiving this message
+                            if err.code() != KafkaError._PARTITION_EOF:
+                                self.__logger.error("Kafka error {}".format(
+                                    message.error().str()))
                         else:
                             valid_messages.append(message)
 
-                    # self.__logger.info("Valid messages/total: {}/{}".format(
-                    #     len(valid_messages), len(messages)))
+                    self.__logger.info("Valid messages: {}".format(
+                        len(valid_messages)))
                     for message in valid_messages:
                         self.publish(message)
         except (KeyboardInterrupt, SystemExit):

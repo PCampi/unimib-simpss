@@ -86,7 +86,6 @@ class CassandraStorage(BaseStorage, Subscriber):
             converted_row.get(column, None) for column in self.__columns)
 
         self.session.execute(self.__statement, values)
-        self.__logger.error(str(datetime.datetime.now().timestamp()))
 
     def __prepare_statement(self, columns):
         """
