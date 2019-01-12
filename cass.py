@@ -8,6 +8,8 @@ from tqdm import tqdm
 import cassandra
 import simpss_persistence
 
+LOGGER = simpss_persistence.custom_logging.get_logger('main')
+
 
 class MockPublisher(simpss_persistence.pub_sub.Publisher):
     def __init__(self):
@@ -34,56 +36,82 @@ class MockPublisher(simpss_persistence.pub_sub.Publisher):
             subscriber.receive(message)
 
 
+def create_database(db_name, replication_factor,
+                    session: cassandra.cluster.Session):
+    query = """
+    CREATE KEYSPACE IF NOT EXISTS %s
+    WITH REPLICATION = {
+        'class': 'SimpleStrategy',
+        'replication_factor': %s
+    }
+    """ % (db_name, replication_factor)
+    LOGGER.debug("Executing query {}".format(query))
+    session.execute(query)
+    LOGGER.debug("query executed")
+
+
+def create_table(keyspace, name, session):
+    query = """
+    CREATE TABLE IF NOT EXISTS %s.%s (
+        time_received timestamp,
+        sensor_group text,
+        sensor_id int,
+        uptime int,
+        temperature int,
+        pressure int,
+        humidity int,
+        ix int,
+        iy int,
+        iz int,
+        mask int,
+        PRIMARY KEY (sensor_group, sensor_id, time_received)
+    )
+    """ % (keyspace, name)
+    LOGGER.debug("Create table: executing query {}".format(query))
+    session.execute(query)
+    LOGGER.debug("query executed")
+
+
 if __name__ == "__main__":
     delay = float(os.getenv('DATA_DELAY', '10'))
 
     addresses = os.getenv('CASSANDRA_CLUSTER_ADDRESSES',
                           'localhost').split(';')
-
-    cluster = cassandra.cluster.Cluster(addresses)
-    cc = simpss_persistence.storage.CassandraStorage(cluster)
-
     keyspace = os.getenv('CASSANDRA_NAMESPACE', 'simpss')
     replication_factor = str(os.getenv('CASSANDRA_REPLICATION', '3'))
+
+    cluster = cassandra.cluster.Cluster(addresses)
+    session = cluster.connect()
+    create_database(keyspace, replication_factor, session)
+    create_table(keyspace, 'sensor_data', session)
+    session.shutdown()
+
+    cc_cluster = cassandra.cluster.Cluster(addresses)
+    cc = simpss_persistence.storage.CassandraStorage(cc_cluster)
 
     try:
         # setup Cassandra
         cc.connect()
-        cc.create_database('simpss', 3)
-        cc.set_keyspace('simpss')
+        cc.set_keyspace_table(keyspace, 'sensor_data')
 
-        columns = {
-            'time_received': 'timestamp',
-            'sensor_group': 'text',
-            'id': 'int',
-            'uptime': 'int',
-            'pressure': 'int',
-            'temperature': 'int',
-            'humidity': 'int',
-            'ix': 'int',
-            'iy': 'int',
-            'iz': 'int',
-            'mask': 'int',
-        }
         mapping = {
-            'id': 'id',
-            'time_received': 'time_received',
             'sensor_group': 'sensor_group',
+            'id': 'sensor_id',
+            'time_received': 'time_received',
             'uptime': 'uptime',
-            'temperature': 'T',
-            'pressure': 'P',
-            'humidity': 'H',
-            'ix': 'Ix',
-            'iy': 'Iy',
-            'iz': 'Iz',
-            'mask': 'M',
+            'T': 'temperature',
+            'P': 'pressure',
+            'H': 'humidity',
+            'Ix': 'ix',
+            'Iy': 'iy',
+            'Iz': 'iz',
+            'M': 'mask',
         }
         cc.set_name_mapping(mapping)
-        cc.set_table('sensor_data', ('row_id', 'text'), columns)
 
         # setup publisher
         publisher = MockPublisher()
-        cc.set_name('sub-1')
+        cc.set_subscriber_name('sub-1')
         cc.subscribe(publisher)
 
         datapath = './test_data/log.txt'
@@ -93,7 +121,8 @@ if __name__ == "__main__":
         for point in tqdm(data):
             message = json.loads(point)
             publisher.publish(message)
-            time.sleep(delay)
+            if delay > 0.0:
+                time.sleep(delay)
 
     except Exception as e:
         print(e)

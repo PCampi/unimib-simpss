@@ -20,16 +20,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def create_database(self, db_name: str, replication: int):
-        raise NotImplementedError
-
-    @abstractmethod
     def set_name_mapping(self, mapping: Dict[str, str]):
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_table(self, table_name: str, primary_key: Tuple[str, str],
-                  columns: Dict[str, str]):
         raise NotImplementedError
 
     @abstractmethod
