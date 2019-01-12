@@ -78,10 +78,15 @@ class CassandraStorage(BaseStorage, Subscriber):
         already defined, else an error from the database will be raised.
         """
         converted_row = convert(row, self.mapping)
+        timestamp = converted_row.get('time_received', None)
+        if timestamp:
+            converted_row['time_received'] = datetime.datetime.fromisoformat(
+                timestamp)
         values = tuple(
             converted_row.get(column, None) for column in self.__columns)
 
         self.session.execute(self.__statement, values)
+        self.__logger.error(str(datetime.datetime.now().timestamp()))
 
     def __prepare_statement(self, columns):
         """

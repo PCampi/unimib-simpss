@@ -4,3 +4,4 @@ scales
 confluent-kafka
 flask
 tqdm
+paho-mqtt
