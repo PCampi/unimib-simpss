@@ -43,8 +43,23 @@ Far partire un Docker container così:
 docker run -it --link nome_container_target:cassandra --rm cassandra:3 cqlsh cassandra
 ```
 
-che nel mio caso, visto che il nome del container Cassandra è `cassandra_graphite` e il network creato da compose è `cassandra_cassandra-network` sarà:
+che nel mio caso, visto che il nome del container Cassandra è `cassandra1` e il network creato da compose è `cassandra_simpss-net` sarà:
 
 ```bash
-docker run -it --network cassandra_cassandra-network --link cassandra_graphite:cassandra --rm cassandra:3 cqlsh cassandra
+docker run -it --network cassandra_simpss-net --link cassandra1:cassandra --rm cassandra:3 cqlsh cassandra
 ```
+
+# Risultati parziali
+
+Ecco un test condotto con
+
+```bash
+docker-compose rm -f
+docker-compose up --build
+
+python stress_sensor.py
+python stress_producer.py
+python stress_cassandra.py
+```
+
+Il throughput tra Mqtt e Kafka è di 47 messaggi al secondo, il throughput tra Kafka e Cassandra è di 43 messaggi al secondo.

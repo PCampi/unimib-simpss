@@ -1,12 +1,55 @@
 version: '3'
 
-services: 
+services:
+  emqx:
+    image: emqx/emqx:v3.0.0-amd64
+    container_name: emqx1
+    restart: always
+    ports:
+      - 1883:1883
+      - 18083:18083
+    networks: 
+      - simpss-net
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper1
+    networks: 
+      - simpss-net
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+  
+  kafka:
+    # See https://rmoff.net/2018/08/02/kafka-listeners-explained/ for details
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka1
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+      - 29092:29092
+    networks:
+      - simpss-net
+    volumes: 
+      - kafka-volume
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  
   cassandra:
     build: ./cassandra-graphite
-    container_name: cassandra_graphite
+    container_name: cassandra1
     image: cassandra:3
     networks: 
-      - cassandra-network
+      - simpss-net
     ports:
       - "7000:7000"
       - "9042:9042"
@@ -14,7 +57,7 @@ services:
     # depends_on: 
     #   - graphite
     volumes: 
-      - cassandra_volume
+      - cassandra-volume
   
   # graphite:
   #   image: graphiteapp/docker-graphite-statsd:latest
@@ -29,7 +72,7 @@ services:
   #   networks:
   #     - cassandra-network
   #   volumes: 
-  #     - graphite_volume
+  #     - graphite-volume
   
   # grafana:
   #   image: grafana/grafana:latest
@@ -40,18 +83,20 @@ services:
   #   networks: 
   #     - cassandra-network
   #   volumes: 
-  #     - grafana_volume
+  #     - grafana-volume
   #   depends_on: 
   #     - graphite
 
 networks:
-  cassandra-network:
+  simpss-net:
     driver: bridge
 
 volumes: 
-  # graphite_volume:
-  #   external: false
-  # grafana_volume:
-  #   external: false
-  cassandra_volume:
+  cassandra-volume:
     external: false
+  kafka-volume:
+    external: false
+  # graphite-volume:
+  #   external: false
+  # grafana-volume:
+  #   external: false

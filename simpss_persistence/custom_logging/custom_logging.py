@@ -13,4 +13,11 @@ def get_logger(name: str):
     console_handler.setFormatter(formatter)
 
     logger.addHandler(console_handler)
+
+    # log to file for timing
+    file_handler = logging.FileHandler('./kafka-to-cassandra.csv')
+    file_handler.setLevel(logging.ERROR)
+    file_formatter = logging.Formatter("%(message)s")
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
     return logger
