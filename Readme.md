@@ -1,5 +1,29 @@
 # Istruzioni per l'uso
 
+## Formato dei dati in ingresso a Cassandra
+
+Il database si aspetta dei dati così strutturati:
+
+```javascript
+data = {
+    "time_received": int,
+    "sensor_group": string,
+    "sensor_id": int,
+    "uptime": int,
+    "temperature": int,
+    "pressure": int,
+    "humidity": int,
+    "ix": int,
+    "iy": int,
+    "iz": int,
+    "mask": int,
+}
+```
+
+I campi `sensor_group`, `sensor_id` e `time_received` formano una chiave primaria composta, `time_received` è il timestamp (int) di ricezione del messaggio dal primo elemento della coda, il *Producer Kafka* che smista i messaggi sui diversi topics.
+
+La conversione tra chiavi nei messaggi avviene nel componente che si occupa di scrivere a database, su Kafka devono entrare soltanto i dati grezzi così come arrivati dal sensore.
+
 ## Testare Cassandra e Graphite/Grafana
 
 Utilizzare questi comandi:
