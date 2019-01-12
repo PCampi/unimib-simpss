@@ -28,7 +28,7 @@ class Subscriber(ABC):
     """
 
     @abstractmethod
-    def set_name(self, name: str):
+    def set_subscriber_name(self, name: str):
         raise NotImplementedError
 
     @abstractmethod
