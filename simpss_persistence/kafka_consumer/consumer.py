@@ -30,7 +30,11 @@ class KafkaConsumer(Publisher):
         self.subscribers: Dict[str, Subscriber] = dict()
         self.running = False
 
-        config = {'bootstrap.servers': bootstrap_servers, 'group.id': group_id}
+        config = {
+            'bootstrap.servers': bootstrap_servers,
+            'group.id': group_id,
+            'enable.auto.commit': True
+        }
         self.kafka = Consumer(config)
 
     def kafka_subscribe(self, topic: str):
