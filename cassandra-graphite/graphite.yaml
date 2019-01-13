@@ -1,0 +1,13 @@
+graphite:
+-
+  period: 30
+  timeunit: 'SECONDS'
+  prefix: 'Node1'
+  hosts:
+  - host: 'graphite'
+    port: 2003
+  predicate:
+    color: "white"
+    useQualifiedName: true
+    patterns:
+    - ".*"

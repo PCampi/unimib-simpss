@@ -4,3 +4,4 @@ mypy
 rope
 pytest
 ipython
+snakeviz

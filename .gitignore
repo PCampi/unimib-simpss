@@ -2,3 +2,6 @@
 *__pycache__*
 .vscode/.ropeproject
 .mypy_cache
+test_data/log_orig.txt
+.vscode/settings.json
+.pytest_cache
