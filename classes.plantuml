@@ -1,0 +1,55 @@
+@startuml class_diag
+
+skinparam class {
+    BackgroundColor White
+}
+
+interface BaseStorage {
+    connect()
+    disconnect()
+    set_name_mapping(mapping: dict)
+    insert_row(row: dict)
+}
+
+interface Subscriber {
+    set_subscriber_name(name: str)
+    subscribe(p: Publisher)
+    unsubscribe()
+    receive(message: dict)
+}
+
+interface Publisher {
+    add_subscriber(s: Subscriber, name: str)
+    remove_subscriber(name: str)
+    publish(message: dict)
+}
+
+class CassandraStorage {
+    connect()
+    disconnect()
+    set_name_mapping(mapping: dict)
+    insert_row(row: dict)
+    set_keyspace_table(keyspace: str, table: str)
+    set_subscriber_name(name: str)
+    subscribe(p: Publisher)
+    unsubscribe()
+    receive(message: dict)
+}
+
+class KafkaConsumer {
+    init(kafka_url: str, group: str)
+    add_subscriber(s: Subscriber, name: str)
+    remove_subscriber(name: str)
+    publish(message: dict)
+    kafka_subscribe(topic: str)
+    start_consuming()
+    on_shutdown()
+}
+
+BaseStorage <|.. CassandraStorage
+Subscriber <|.. CassandraStorage
+Publisher <|.. KafkaConsumer
+KafkaConsumer "1" -- "0..*" CassandraStorage
+
+hide empty members
+@enduml
