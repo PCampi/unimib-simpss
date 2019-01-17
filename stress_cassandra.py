@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     addresses = os.getenv('CASSANDRA_CLUSTER_ADDRESSES',
                           'localhost').split(';')
-    keyspace = os.getenv('CASSANDRA_NAMESPACE', 'simpss')
+    keyspace = os.getenv('CASSANDRA_KEYSPACE', 'simpss')
     replication_factor = str(os.getenv('CASSANDRA_REPLICATION', '3'))
 
     cluster = cassandra.cluster.Cluster(addresses)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     # KAFKA
     bootstrap_servers = str(
-        os.environ.get('KAFKA_BOOTSTRAP', 'localhost:9092'))
+        os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092'))
     consumer_group_id = str(os.environ.get('KAFKA_CONSUMER_GROUP_ID', 'cg1'))
 
     try:
