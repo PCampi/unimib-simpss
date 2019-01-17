@@ -1,7 +1,7 @@
+cython
 cassandra-driver
 lz4
 scales
 confluent-kafka
-flask
 tqdm
 paho-mqtt
