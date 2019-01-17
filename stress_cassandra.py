@@ -1,3 +1,4 @@
+import atexit
 import datetime
 import json
 import os
@@ -74,6 +75,23 @@ def create_table(keyspace, name, session):
     LOGGER.debug("query executed")
 
 
+def on_exit(cs: simpss_persistence.storage.CassandraStorage):
+    """Executed on exit.
+    
+    Parameters
+    ----------
+    cs: CassandraStorage
+    """
+
+    def runnable():
+        elapsed = cs.end_time - cs.start_time
+        n = cs.rows_inserted
+        print("Cassandra Benchmark")
+        print("Sent {} messages in {}".format(n, str(elapsed)))
+
+    return runnable
+
+
 if __name__ == "__main__":
     delay = float(os.getenv('DATA_DELAY', '10'))
 
@@ -125,6 +143,9 @@ if __name__ == "__main__":
         # add Cassandra storage as a subscriber to the consumer and run it
         cc.set_subscriber_name('sub-1')
         cc.subscribe(kafka_consumer)
+
+        # register exit callback
+        atexit.register(on_exit(cc))
 
         # start
         kafka_consumer.start_consuming()

@@ -115,8 +115,6 @@ class MqttKafkaProducer(object):
                             message,
                             callback=self.__delivery_report)
                         self._kf_producer.poll(0.3)
-                        self.__logger.error(
-                            str(datetime.datetime.now().timestamp()))
 
                 except queue.Empty:
                     continue
@@ -226,12 +224,5 @@ class MqttKafkaProducer(object):
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
-
-        # log to file for timing
-        file_handler = logging.FileHandler('./mqtt-to-kafka.csv')
-        file_handler.setLevel(logging.ERROR)
-        file_formatter = logging.Formatter("%(message)s")
-        file_handler.setFormatter(file_formatter)
-        logger.addHandler(file_handler)
 
         return logger

@@ -117,12 +117,17 @@ if __name__ == "__main__":
         datapath = './test_data/log.txt'
         with open(datapath, 'r') as d:
             data = [s for s in tqdm(d.read().split('\n')[:-1])]
+        
+        messages = [json.loads(p) for p in tqdm(data)]
 
-        for point in tqdm(data):
-            message = json.loads(point)
-            publisher.publish(message)
-            if delay > 0.0:
+        if delay > 0.0:
+            for message in tqdm(messages):
+                publisher.publish(message)
                 time.sleep(delay)
+        else:
+            for message in tqdm(messages):
+                publisher.publish(message)
+
 
     except Exception as e:
         print(e)

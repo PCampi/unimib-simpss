@@ -36,6 +36,10 @@ class CassandraStorage(BaseStorage, Subscriber):
     def __init__(self, cluster: cc.Cluster):
         self.cluster = cluster
         self.__logger = get_logger(name='CassandraStorage')
+        self.rows_inserted = 0
+        self.__has_started = False
+        self.start_time: datetime.datetime = datetime.datetime.now()
+        self.end_time: datetime.datetime = datetime.datetime.now()
 
     def connect(self):
         """Connect to storage backend."""
@@ -77,6 +81,10 @@ class CassandraStorage(BaseStorage, Subscriber):
         Insert a row into Cassandra. The row should have the right column names
         already defined, else an error from the database will be raised.
         """
+        if not self.__has_started:
+            self.__has_started = True
+            self.start_time = datetime.datetime.now()
+
         converted_row = convert(row, self.mapping)
         timestamp = converted_row.get('time_received', None)
         if timestamp:
@@ -86,6 +94,8 @@ class CassandraStorage(BaseStorage, Subscriber):
             converted_row.get(column, None) for column in self.__columns)
 
         self.session.execute(self.__statement, values)
+        self.rows_inserted += 1
+        self.end_time = datetime.datetime.now()
 
     def __prepare_statement(self, columns):
         """
