@@ -158,3 +158,49 @@ che nel nostro caso, visto che il nome del container Cassandra è `cassandra1` e
 ```bash
 docker run -it --network cassandra_simpss-net --link cassandra1:cassandra --rm cassandra:3 cqlsh cassandra
 ```
+
+# Deploy sulle macchine MGH
+
+## Creazione dei dischi e delle partizioni
+
+I dischi vanno formattati in `ext4` per essere utilizzati. Vogliamo usate `dev/sda` per kafka/zookeeper e montarlo su `/mnt/kafka-zookeeper`, mentre useremo `/dev/sdb` montato su `/mnt/cassandra` per cassandra.
+
+Prima di tutto, formattare i dischi:
+```bash
+# primo disco, generalmente su /dev/sda
+sudo parted /dev/sda mklabel gpt
+# creo la partizione
+sudo parted -a opt /dev/sda mkpart primary ext4 0% 100%
+# formatto la partizione in ext4
+sudo mkfs.ext4 -L kafka-zookeeper /dev/sda1
+
+# secondo disco, generalmente su /dev/sdb
+sudo parted /dev/sdb mklabel gpt
+# creo la partizione
+sudo parted -a opt /dev/sdb mkpart primary ext4 0% 100%
+# formatto la partizione in ext4
+sudo mkfs.ext4 -L cassandra /dev/sdb1
+```
+
+Poi modificare il file `/etc/fstab` aggiungendo le seguenti righe:
+
+```txt
+LABEL=kafka-zookeeper /mnt/kafka-zookeeper ext4 defaults 0 2
+LABEL=cassandra /mnt/cassandra ext4 defaults 0 2
+```
+
+e finire con
+
+```bash
+sudo mount -a
+```
+
+che forza il refresh dei dischi e li monta nelle posizioni specificate.
+
+In questo modo, i dischi verranno montati in automatico a ogni reboot del sistema.
+
+## Collegamento e lancio del programma
+
+1. collegarsi in remoto con `ssh user_simpss@88.149.215.117 -p 2200`
+2. assicurarsi che i dischi per kafka/zookeeper e cassandra siano montati: `ls /mnt` si **devono** trovare i mountpoint `/mnt/kafka-zookeeper` e `/mnt/cassandra`. Se ciò non è avvenuto, riferirsi agli step precedenti
+3. TODO...
