@@ -19,6 +19,7 @@ mypy = "*"
 rope = "*"
 pytest = "*"
 ipython = "*"
+pandas = "~=0.24"
 
 [requires]
 python_version = "3.7"
