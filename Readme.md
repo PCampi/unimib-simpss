@@ -343,7 +343,7 @@ Se la connessione viene rifiutata è colpa del firewall di MGH. In questo caso, 
 ssh-keygen -R [88.149.215.117]:2200
 ```
 
-che rimuove la vecchia chiave (apparentemente cambia ad ogni connessione, non so perché).
+che rimuove la vecchia chiave (apparentemente cambia ad ogni connessione, non so perché)
 
 ## Problemi di spazio su disco sul server
 
