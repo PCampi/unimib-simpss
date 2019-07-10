@@ -150,13 +150,13 @@ docker-compose down
 Far partire un Docker container così:
 
 ```bash
-docker run -it --link nome_container_target:cassandra --rm cassandra:3 cqlsh cassandra
+docker run -it --link nome_container_target:cassandra --rm cassandra:3.11 cqlsh cassandra
 ```
 
 che nel nostro caso, visto che il nome del container Cassandra è `cassandra1` e il network creato da compose è `cassandra_simpss-net` sarà:
 
 ```bash
-docker run -it --network cassandra_simpss-net --link cassandra1:cassandra --rm cassandra:3 cqlsh cassandra
+docker run -it --network unimibsimpss_simpss-net --link cassandra1:cassandra --rm cassandra:3.11 cqlsh cassandra
 ```
 
 # Deploy sulle macchine MGH
@@ -189,7 +189,7 @@ LABEL=kafka-zookeeper /mnt/kafka-zookeeper ext4 defaults 0 2
 LABEL=cassandra /mnt/cassandra ext4 defaults 0 2
 ```
 
-e finire con
+e poi
 
 ```bash
 sudo mount -a
@@ -199,8 +199,71 @@ che forza il refresh dei dischi e li monta nelle posizioni specificate.
 
 In questo modo, i dischi verranno montati in automatico a ogni reboot del sistema.
 
+Infine, creare le cartelle che serviranno a kafka, zookeeper e cassandra per scrivere i loro files:
+
+```bash
+sudo mkdir /mnt/kafka-zookeeper/data-kafka
+sudo mkdir /mnt/kafka-zookeeper/data-zookeeper
+sudo mkdir /mnt/kafka-zookeeper/logs-zookeeper
+
+sudo mkdir /mnt/cassandra/data
+```
+
+## Creazione degli utenti e settaggio permessi sulle cartelle dati
+
+Le cartelle create al punto precedente per Kafka, Zookeeper e Cassandra sono ancora di proprietà di `root`.
+Bisogna quindi creare un nuovo gruppo di utenti, chiamato `simpss_group`, in cui inserire l'utente `user_simpss` (quello di login), e assegnare al gruppo le cartelle:
+
+```bash
+# creazione gruppo utenti
+sudo groupadd simpss_group
+
+# aggiungi l'utente al gruppo
+sudo usermod -a -G simpss_group user_simpss
+```
+
+Fatto ciò, fare logout e login da SSH. Poi, cambiare il group owner delle cartelle:
+
+
+```bash
+sudo chgrp -R simpss_group /mnt/kafka-zookeeper/data-kafka/
+sudo chmod -R g+rwx /mnt/kafka-zookeeper/data-kafka/
+
+sudo chgrp -R simpss_group /mnt/kafka-zookeeper/data-zookeeper/
+sudo chmod -R g+rwx /mnt/kafka-zookeeper/data-zookeeper/
+
+sudo chgrp -R simpss_group /mnt/kafka-zookeeper/logs-zookeeper/
+sudo chmod -R g+rwx /mnt/kafka-zookeeper/logs-zookeeper/
+
+sudo chgrp -R simpss_group /mnt/cassandra/data/
+sudo chmod -R g+rwx /mnt/cassandra/data/
+```
+
+## Installazione della versione corretta di Python (richiesta 3.7)
+
+Visto che è richiesta la 3.7 e di default c'è la 3.6, utilizzare i seguenti comandi:
+
+```bash
+sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe"
+sudo apt-get update
+sudo apt-get install python3.7 python3.7-dev
+```
+
+Poi installare `Pipenv` con `python3.7 -m pip install --user pipenv`.
+
+Da terminale, navigare nella cartella del progetto e digitare `pipenv --python 3.7` per creare l'ambiente virtuale, poi ancora `pipenv install -r requirements.txt` e `pipenv install -r dev-requirements.txt`.
+
 ## Collegamento e lancio del programma
 
 1. collegarsi in remoto con `ssh user_simpss@88.149.215.117 -p 2200`
 2. assicurarsi che i dischi per kafka/zookeeper e cassandra siano montati: `ls /mnt` si **devono** trovare i mountpoint `/mnt/kafka-zookeeper` e `/mnt/cassandra`. Se ciò non è avvenuto, riferirsi agli step precedenti
-3. TODO...
+3. `docker-compose rm -f`
+4. `docker-compose pull` e aspettare che scarichi le immagini
+5. `docker-compose up --build -d`
+6. attivare la shell Pipenv con `pipenv shell` e fare lo stress test con:
+    1. `python stress-sensor.py`
+    2. `python stress_producer.py`
+    3. `python stress_cassandra.py`
+    4. entrare in un container Docker per fare le query a Cassandra con `docker run -it --network unimibsimpss_simpss-net --link cassandra1:cassandra --rm cassandra:3.11 cqlsh cassandra`
+    5. nella shell che si presenta, digitare `SELECT * from simpss.sensor_data LIMIT 10;` e verficare che siano salvati i dati
+6. una volta finito, `docker-compose down`

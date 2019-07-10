@@ -1,8 +1,8 @@
-version: '3'
+version: '3.5'
 
 services:
   emqx:
-    image: emqx/emqx:v3.0.0-amd64
+    image: emqx/emqx:v3.1.2-amd64
     container_name: emqx1
     restart: always
     ports:
@@ -12,10 +12,17 @@ services:
       - simpss-net
   
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:5.2.2
     container_name: zookeeper1
     networks: 
       - simpss-net
+    volumes:
+      - type: bind
+        source: /mnt/kafka-zookeeper/data-zookeeper
+        target: /var/lib/zookeeper/data
+      - type: bind
+        source: /mnt/kafka-zookeeper/logs-zookeeper
+        target: /var/lib/zookeeper/log
     environment:
       ZOOKEEPER_SERVER_ID: 1
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -25,7 +32,7 @@ services:
   
   kafka:
     # See https://rmoff.net/2018/08/02/kafka-listeners-explained/ for details
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:5.2.2
     container_name: kafka1
     depends_on:
       - zookeeper
@@ -35,7 +42,9 @@ services:
     networks:
       - simpss-net
     volumes: 
-      - kafka-volume
+      - type: bind
+        source: /mnt/kafka-zookeeper/data-kafka
+        target: /var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -47,7 +56,7 @@ services:
   cassandra:
     build: ./cassandra-graphite
     container_name: cassandra1
-    image: cassandra:3
+    image: cassandra:3.11
     networks: 
       - simpss-net
     ports:
@@ -57,7 +66,10 @@ services:
     # depends_on: 
     #   - graphite
     volumes: 
-      - cassandra-volume
+      - type: bind
+        source: /mnt/cassandra/data # on the host machine
+        target: /var/lib/cassandra # inside the container
+
   
   # graphite:
   #   image: graphiteapp/docker-graphite-statsd:latest
@@ -91,11 +103,11 @@ networks:
   simpss-net:
     driver: bridge
 
-volumes: 
-  cassandra-volume:
-    external: false
-  kafka-volume:
-    external: false
+# volumes: 
+#   cassandra-volume:
+#     external: false
+#   kafka-volume:
+#     external: false
   # graphite-volume:
   #   external: false
   # grafana-volume:
