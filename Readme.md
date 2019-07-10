@@ -253,7 +253,7 @@ Poi installare `Pipenv` con `python3.7 -m pip install --user pipenv`.
 
 Da terminale, navigare nella cartella del progetto e digitare `pipenv --python 3.7` per creare l'ambiente virtuale, poi ancora `pipenv install -r requirements.txt` e `pipenv install -r dev-requirements.txt`.
 
-## Collegamento e lancio del programma
+## Test di funzionamento
 
 1. collegarsi in remoto con `ssh user_simpss@88.149.215.117 -p 2200`
 2. assicurarsi che i dischi per kafka/zookeeper e cassandra siano montati: `ls /mnt` si **devono** trovare i mountpoint `/mnt/kafka-zookeeper` e `/mnt/cassandra`. Se ciò non è avvenuto, riferirsi agli step precedenti
@@ -267,3 +267,84 @@ Da terminale, navigare nella cartella del progetto e digitare `pipenv --python 3
     4. entrare in un container Docker per fare le query a Cassandra con `docker run -it --network unimibsimpss_simpss-net --link cassandra1:cassandra --rm cassandra:3.11 cqlsh cassandra`
     5. nella shell che si presenta, digitare `SELECT * from simpss.sensor_data LIMIT 10;` e verficare che siano salvati i dati
 6. una volta finito, `docker-compose down`
+
+## Lancio del sistema
+
+Per lanciare il sistema bisogna svolgere 4 operazioni: definire le associazioni tra sensori e gruppi, lanciare docker, lanciare il collegamento tra MQTT e Kafka (`link_mqtt_kafka.py`), e lanciare il collegamento tra Kafka e Cassandra (`link_kafka_cassandra.py`).
+
+### Step 1: associazione sensori-gruppi
+
+I sensori **devono** far parte ognuno di **un solo gruppo**. L'associazione si trova nel file `sensor_group.csv`, dove la prima colonna contiene l'id del sensore (type: `int`) e la seconda il nome del gruppo (type: `string`).
+
+**Importante 1**: non sono ammessi id sensore duplicati, né righe/colonne mancanti nel file di definizione dell'associazione, né nomi di gruppi contenenti virgole.
+
+**Importante 2**: il file va modificato **prima** di lanciare gli script Python, poiché essi lo caricano solo all'inizio dell'esecuzione e mai più. Se si effettuano modifiche al file, fermare e rilanciare gli script come descritto nelle prossime sezioni.
+
+### Step 1: docker
+
+1. collegarsi in remoto con `ssh user_simpss@88.149.215.117 -p 2200`
+2. assicurarsi che i dischi per kafka/zookeeper e cassandra siano montati: `ls /mnt` si **devono** trovare i mountpoint `/mnt/kafka-zookeeper` e `/mnt/cassandra`. Se ciò non è avvenuto, riferirsi agli step precedenti
+3. `docker-compose rm -f`
+4. `docker-compose pull` e aspettare che scarichi le immagini
+5. `docker-compose up --build -d`
+
+### Step 2: collegare Kafka e Cassandra
+
+1. collegarsi tramite ssh con `ssh user_simpss@88.149.215.117 -p 2200` ed entrare nella cartella del progetto con `cd unimib-simpss`
+2. digitare il comando `screen` e premere invio alla schermata successiva. Si è ora in un terminale virtuale che continuerà a vivere anche dopo la nostra disconnessione (è quello che vogliamo visto che gli script Python devono girare sempre)
+3. attivare la shell Pipenv con `pipenv shell`. Il terminale visualizzerà `(unimib-simpss)` prima del solito prompt
+4. attivare il link tra Kafka e Cassandra con `python link_kafka_cassandra.py`
+
+Il terminale resta quindi bloccato.
+Per sbloccarlo, uscire dalla sessione di *screen* con il comando `Ctrl-a d`, ci si troverà nel terminale normale ancora collegati in SSH, ma non bloccati. 
+
+Per riconnettersi al terminale virtuale che sta eseguendo lo script Python, digitare `screen -ls` e poi scegliere dalla lista una sessione con la dicitura `Detached`.
+Prendere il suo id (qualcosa di simile a `357.pts-1.data`) e digitare `screen -r id_sessione`. Ci si troverà connessi di nuovo con lo script in esecuzione e i log visualizzati a schermo.
+
+Per fermare lo script, semplicemente usare `Ctrl-c`.
+
+
+### Step 3: collegare MQTT e Kafka
+
+1. collegarsi tramite ssh con `ssh user_simpss@88.149.215.117 -p 2200` ed entrare nella cartella del progetto con `cd unimib-simpss`
+2. digitare il comando `screen` e premere invio alla schermata successiva. Si è ora in un terminale virtuale che continuerà a vivere anche dopo la nostra disconnessione (è quello che vogliamo visto che gli script Python devono girare sempre)
+3. attivare la shell Pipenv con `pipenv shell`. Il terminale visualizzerà `(unimib-simpss)` prima del solito prompt
+4. attivare il link tra MQTT e Kafka con `python link_mqtt_kafka.py`
+
+Il terminale resta quindi bloccato.
+Per sbloccarlo, uscire dalla sessione di *screen* con il comando `Ctrl-a d`, ci si troverà nel terminale normale ancora collegati in SSH, ma non bloccati. 
+
+Per riconnettersi al terminale virtuale che sta eseguendo lo script Python, digitare `screen -ls` e poi scegliere dalla lista una sessione con la dicitura `Detached`.
+Prendere il suo id (qualcosa di simile a `357.pts-1.data`) e digitare `screen -r id_sessione`. Ci si troverà connessi di nuovo con lo script in esecuzione e i log visualizzati a schermo.
+
+Per fermare lo script, semplicemente usare `Ctrl-c`.
+
+Un buon tutorial su come usare `screen` si trova a [questo link](https://www.rackaid.com/blog/linux-screen-tutorial-and-how-to/).
+
+
+## Spegnimento del sistema
+
+Per spegnere il sistema, basta collegarsi agli `screen` remoti e usare `Ctrl-c`.
+
+Per uscire dalla shell Pipenv usare `Ctrl-d`, così come dal terminale virtuale `screen`.
+
+Per arrestare i Docker containers di MQTT, Kafka e Cassandra, entrare nella cartella del progetto `cd unimib-simpss` ed eseguire il comando `docker-compose down`.
+
+In caso di problemi, si possono vedere i log con `docker-compose logs`.
+
+
+# Troubleshooting
+
+## Problema connessione SSH
+
+Se la connessione viene rifiutata è colpa del firewall di MGH. In questo caso, prima di connettersi, nel terminale locale eseguire
+
+```bash
+ssh-keygen -R [88.149.215.117]:2200
+```
+
+che rimuove la vecchia chiave (apparentemente cambia ad ogni connessione, non so perché).
+
+## Problemi di spazio su disco sul server
+
+Conviene controllare periodicamente lo spazio disponibile nelle partizioni dati di Kafka e Cassandra. Un facile comando è `df -h`.

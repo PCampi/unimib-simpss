@@ -19,8 +19,12 @@ class MqttKafkaProducer(object):
     Consumes from an MQTT topic and produces to a Kafka instance.
     """
 
-    def __init__(self, mqtt_config, kafka_config: Dict[str, Any],
-                 sensor_groups: Dict[int, str]):
+    def __init__(self,
+                 mqtt_config,
+                 kafka_config: Dict[str, Any],
+                 sensor_groups: Dict[int, str],
+                 mqtt_timeout=1.0,
+                 kafka_timeout=0.3):
         """
         Create an instance of the Mqtt client and
         the Kafka producer with the specified configuration.
@@ -33,8 +37,13 @@ class MqttKafkaProducer(object):
         self.messages_read_from_mqtt = 0
         self.messages_sent_to_kafka = 0
 
-        producer_name = "{}-{}".format(
-            str(kafka_config['group.id']), str(kafka_config['client.id']))
+        assert mqtt_timeout > 0.0 and mqtt_timeout < 600.0
+        assert kafka_timeout >= 0.0 and kafka_timeout < 600.0
+        self._mqtt_timeout = mqtt_timeout
+        self._kafka_poll_timeout = kafka_timeout
+
+        producer_name = "{}-{}".format(str(kafka_config['group.id']),
+                                       str(kafka_config['client.id']))
         self.__logger = self.__get_logger(producer_name)
 
         self.__logger.info("Setting up mqtt and kafka")
@@ -44,7 +53,7 @@ class MqttKafkaProducer(object):
         self.queue: queue.Queue = queue.Queue(maxsize=5000)
         self.__logger.info("Finished configuration for mqtt and Kafka")
 
-    def __setup_mqtt(self, mqtt_config):
+    def __setup_mqtt(self, mqtt_config: Dict[str, Any]):
         mq_required_keys = set([
             'client-id', 'address', 'port', 'transport', 'topic', 'qos',
             'max-inflight', 'payload-key'
@@ -63,10 +72,9 @@ class MqttKafkaProducer(object):
         mqtt_qos = int(mqtt_config['qos'])
         mqtt_max_inflight = int(mqtt_config['max-inflight'])
 
-        self._mq_client = mq.Client(
-            client_id=mqtt_client_id,
-            clean_session=True,
-            transport=mqtt_transport)
+        self._mq_client = mq.Client(client_id=mqtt_client_id,
+                                    clean_session=True,
+                                    transport=mqtt_transport)
         self._mq_client.max_inflight_messages_set(mqtt_max_inflight)
         self._mq_client.on_connect = self._on_mqtt_connect(
             self._mqtt_topic, mqtt_qos)
@@ -80,24 +88,26 @@ class MqttKafkaProducer(object):
         if 'bootstrap.servers' not in kafka_config.keys():
             raise ValueError("Missing bootstrap.servers key in kafka config")
 
-        self.__logger.info("Creating Kafka producer with configuration {}".
-                           format(kafka_config))
-        self._kf_producer: ck.Producer = ck.Producer(
-            kafka_config, logger=self.__logger)
+        self.__logger.info(
+            "Creating Kafka producer with configuration {}".format(
+                kafka_config))
+        self._kf_producer: ck.Producer = ck.Producer(kafka_config,
+                                                     logger=self.__logger)
         self.__logger.info("Created Kafka producer")
 
     def run(self):
         """
         Run the clients.
         """
-        self._mq_client.connect(
-            self._mqtt_address, port=self._mqtt_port, keepalive=60)
+        self._mq_client.connect(self._mqtt_address,
+                                port=self._mqtt_port,
+                                keepalive=60)
 
         try:
             while True:
                 # poll the mqtt client for network events
                 # things will happen in the on_message callback
-                self._mq_client.loop(timeout=1.0)
+                self._mq_client.loop(timeout=self._mqtt_timeout)
 
                 # the queue should contain messages at this point
                 try:  # get all messages from the queue and send them to Kafka
@@ -105,16 +115,16 @@ class MqttKafkaProducer(object):
                         # raises if empty, so don't worry of infinite loops
                         message_dict = self.queue.get_nowait()
                         kafka_topic = str(message_dict['sensor_group'])
-                        message_str = json.dumps(
-                            message_dict, ensure_ascii=False)
+                        message_str = json.dumps(message_dict,
+                                                 ensure_ascii=False)
                         message = message_str.encode('utf-8')
 
-                        # produce to kafka and poll for 0.3 seconds max
+                        # produce to kafka and poll for self._kafka_poll_timeout seconds max
                         self._kf_producer.produce(
                             kafka_topic,
                             message,
                             callback=self.__delivery_report)
-                        self._kf_producer.poll(0.3)
+                        self._kf_producer.poll(self._kafka_poll_timeout)
 
                 except queue.Empty:
                     continue
@@ -190,10 +200,13 @@ class MqttKafkaProducer(object):
         payload = json.loads(payload_str)
 
         payload['time_received'] = datetime.datetime.now().isoformat()
-        payload['sensor_group'] = self.__sensor_map[payload[self.
-                                                            _mqtt_payload_key]]
-
-        self.queue.put(payload)
+        sensor_id = payload[self._mqtt_payload_key]
+        try:
+            payload['sensor_group'] = self.__sensor_map[sensor_id]
+            self.queue.put(payload)
+        except KeyError:
+            raise KeyError(
+                f"{sensor_id} is not a known sensor_id, check definition file")
 
     def _on_log(self, client: mq.Client, userdata, level, buf):
         """
