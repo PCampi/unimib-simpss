@@ -332,6 +332,12 @@ Per arrestare i Docker containers di MQTT, Kafka e Cassandra, entrare nella cart
 
 In caso di problemi, si possono vedere i log con `docker-compose logs`.
 
+## Cancellare i dati salvati
+
+Per cancellare il database Cassandra e Kafka, fermare il sistema con `docker-compose down` dalla presente cartella e poi cancellare tutto il contenuto delle cartelle `/mnt/kafka-zookeeper/data-kafka`, `/mnt/kafka-zookeeper/data-zookeeper`, `/mnt/kafka-zookeeper/logs-zookeeper`, `/mnt/cassandra/data`.
+
+**Attenzione**: non cancellare le cartelle, solo il loro contenuto. Se non esistono, il sistema non si avvia!
+
 
 # Troubleshooting
 
