@@ -253,7 +253,7 @@ Poi installare `Pipenv` con `python3.7 -m pip install --user pipenv`.
 
 Da terminale, navigare nella cartella del progetto e digitare `pipenv --python 3.7` per creare l'ambiente virtuale, poi ancora `pipenv install -r requirements.txt` e `pipenv install -r dev-requirements.txt`.
 
-## Collegamento e lancio del programma
+## Test di funzionamento
 
 1. collegarsi in remoto con `ssh user_simpss@88.149.215.117 -p 2200`
 2. assicurarsi che i dischi per kafka/zookeeper e cassandra siano montati: `ls /mnt` si **devono** trovare i mountpoint `/mnt/kafka-zookeeper` e `/mnt/cassandra`. Se ciò non è avvenuto, riferirsi agli step precedenti
@@ -267,3 +267,18 @@ Da terminale, navigare nella cartella del progetto e digitare `pipenv --python 3
     4. entrare in un container Docker per fare le query a Cassandra con `docker run -it --network unimibsimpss_simpss-net --link cassandra1:cassandra --rm cassandra:3.11 cqlsh cassandra`
     5. nella shell che si presenta, digitare `SELECT * from simpss.sensor_data LIMIT 10;` e verficare che siano salvati i dati
 6. una volta finito, `docker-compose down`
+
+## Lancio del sistema
+
+1. collegarsi in remoto con `ssh user_simpss@88.149.215.117 -p 2200` in **2 diversi terminali**
+2. assicurarsi che i dischi per kafka/zookeeper e cassandra siano montati: `ls /mnt` si **devono** trovare i mountpoint `/mnt/kafka-zookeeper` e `/mnt/cassandra`. Se ciò non è avvenuto, riferirsi agli step precedenti
+3. `docker-compose rm -f`
+4. `docker-compose pull` e aspettare che scarichi le immagini
+5. `docker-compose up --build -d`
+6. in ogni terminale, attivare un emulatore con il comando `screen`, e poi la shell Pipenv con `pipenv shell`
+7. in un terminale, attivare il link tra Kafka e Cassandra con `python link_kafka_cassandra.py`
+8. nell'altro, attivare il link tra MQTT e Kafka con `python link_mqtt_kafka.py`
+
+ATTENZIONE: i comandi precedenti sono **bloccanti**, nel senso che il terminale rimane collegato poi al logging e visto che i programmi non terminano mai, si consiglia di usare il programma `screen`. Un buon tutorial si trova a [questo link](https://www.rackaid.com/blog/linux-screen-tutorial-and-how-to/).
+
+Il programma `screen` viene utilizzato per evitare che il sistema si chiuda quando ci disconnettiamo dalla connessione SSH.

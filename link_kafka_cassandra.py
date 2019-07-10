@@ -1,42 +1,17 @@
+"""File linking the Kafka cluster to Cassandra."""
+
 import datetime
 import json
 import os
 import time
 
-import mocks
-
 from tqdm import tqdm
 
 import cassandra
 import simpss_persistence
+import utils
 
 LOGGER = simpss_persistence.custom_logging.get_logger('main')
-
-
-class MockPublisher(simpss_persistence.pub_sub.Publisher):
-    def __init__(self):
-        self.subscribers = dict()
-
-    def add_subscriber(self, sub_obj, sub_name):
-        if sub_name not in self.subscribers:
-            self.subscribers[sub_name] = sub_obj
-        else:
-            raise ValueError(
-                "Subscriber with name {} already exists".format(sub_name))
-
-    def remove_subscriber(self, name):
-        subscriber = self.subscribers.pop(name, None)
-        if subscriber is None:
-            print(
-                "Trying to remove subscriber {} which does not exist!".format(
-                    name))
-
-    def publish(self, message):
-        message['time_received'] = datetime.datetime.now()
-        message['sensor_group'] = 'g1'
-
-        for _, subscriber in self.subscribers.items():
-            subscriber.receive(message)
 
 
 def create_database(db_name, replication_factor,
@@ -75,11 +50,22 @@ def create_table(keyspace, name, session):
     LOGGER.debug("query executed")
 
 
-if __name__ == "__main__":
+def main():
+    LOGGER.info("reading sensor file")
+    sensor_groups = utils.read_sensor_group_mapping(
+        os.path.join(os.getcwd(), 'sensor_group.csv'))
+    LOGGER.info(f"configuration read: {str(sensor_groups)}")
+    unique_groups = set([x for _, x in sensor_groups.items()])
+    consumer_groups = [g for g in unique_groups]
+
     addresses = os.getenv('CASSANDRA_CLUSTER_ADDRESSES',
                           'localhost').split(';')
     keyspace = os.getenv('CASSANDRA_KEYSPACE', 'simpss')
     replication_factor = str(os.getenv('CASSANDRA_REPLICATION', '3'))
+
+    LOGGER.info(f"cassandra addresses: {addresses}")
+    LOGGER.info(f"cassandra keyspace: {keyspace}")
+    LOGGER.info(f"cassandra replication factor: {replication_factor}")
 
     cluster = cassandra.cluster.Cluster(addresses)
     session = cluster.connect()
@@ -95,8 +81,12 @@ if __name__ == "__main__":
         os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092'))
     consumer_group_id = str(os.environ.get('KAFKA_CONSUMER_GROUP_ID', 'cg1'))
 
+    LOGGER.info(f"kafka bootstrap servers: {bootstrap_servers}")
+    LOGGER.info(f"kafka consumer group id: {consumer_group_id}")
+
     try:
         # setup Cassandra
+        LOGGER.info("connecting to cassandra")
         cc.connect()
         cc.set_keyspace_table(keyspace, 'sensor_data')
 
@@ -116,10 +106,12 @@ if __name__ == "__main__":
         cc.set_name_mapping(mapping)
 
         # setup kafka consumer and subscribe to Kafka
+        LOGGER.info("creating kafka consumer")
         kafka_consumer = simpss_persistence.kafka_consumer.KafkaConsumer(
             bootstrap_servers, consumer_group_id)
 
-        kafka_consumer.kafka_subscribe(['g1', 'g2'])
+        LOGGER.info(f"subscribing consumer to groups: {consumer_groups}")
+        kafka_consumer.kafka_subscribe(consumer_groups)
 
         # add Cassandra storage as a subscriber to the consumer and run it
         cc.set_subscriber_name('sub-1')
@@ -131,3 +123,7 @@ if __name__ == "__main__":
         print(e)
     finally:
         cc.disconnect()
+
+
+if __name__ == "__main__":
+    main()
