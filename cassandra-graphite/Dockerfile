@@ -1,4 +1,4 @@
-FROM cassandra:3
+FROM cassandra:3.11
 
 COPY graphite.yaml /etc/cassandra/
 RUN echo "JVM_OPTS=\"$JVM_OPTS -Dcassandra.metricsReporterConfigFile=graphite.yaml\"" >> /etc/cassandra/cassandra-env.sh

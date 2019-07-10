@@ -17,6 +17,6 @@ if __name__ == "__main__":
         'max-inflight': 100,
     }
 
-    datapath = '/Users/pietro/Documents/Uni/Large_Scale_Data_Management/cassandra/test_data/log.txt'
+    datapath = os.path.join(os.getcwd(), 'test_data', 'log.txt')
     delay = float(os.environ.get("SENSOR_DELAY", '10'))
     mocks.sensor.run_sensor(datapath, topic='simpss', publish_every=delay)

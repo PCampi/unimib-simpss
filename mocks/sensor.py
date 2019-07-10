@@ -7,7 +7,6 @@ import os
 import sys
 import time
 from typing import List
-import numpy as np
 from tqdm import tqdm
 
 import paho.mqtt.client as mq
