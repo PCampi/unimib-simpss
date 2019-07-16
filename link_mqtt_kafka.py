@@ -19,7 +19,7 @@ def main():
     password = str(os.environ.get("MQTT_PASSWORD", 'simpss24112017'))
     client_id = str(os.environ.get("MQTT_CLIENT_ID", 'prod1'))
     mqtt_address = str(os.environ.get("MQTT_ADDRESS", 'localhost'))
-    mqtt_topic = str(os.environ.get("MQTT_TOPIC", 'simpss'))
+    mqtt_topic = str(os.environ.get("MQTT_TOPIC", 'SIMPSS/+/DATA'))
     mqtt_max_inflight = int(os.environ.get("MQTT_MAX_INFLIGHT", 100))
     mqtt_payload_key = str(os.environ.get("MQTT_PAYLOAD_KEY", 'id'))
     mqtt_config = {
