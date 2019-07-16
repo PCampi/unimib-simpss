@@ -55,13 +55,23 @@ class MqttKafkaProducer(object):
 
     def __setup_mqtt(self, mqtt_config: Dict[str, Any]):
         mq_required_keys = set([
-            'client-id', 'address', 'port', 'transport', 'topic', 'qos',
-            'max-inflight', 'payload-key'
+            'client-id',
+            'address',
+            'port',
+            'transport',
+            'topic',
+            'qos',
+            'max-inflight',
+            'payload-key',
+            'user',
+            'password',
         ])
         if not all(k in mqtt_config.keys() for k in mq_required_keys):
             raise ValueError(
                 "Required keys for Mqtt configuration are missing!")
 
+        self._mqtt_user = mqtt_config['user']
+        self._mqtt_password = mqtt_config['password']
         self._mqtt_address = str(mqtt_config['address'])
         self._mqtt_port = int(mqtt_config['port'])
         self._mqtt_topic = str(mqtt_config['topic'])
@@ -75,6 +85,9 @@ class MqttKafkaProducer(object):
         self._mq_client = mq.Client(client_id=mqtt_client_id,
                                     clean_session=True,
                                     transport=mqtt_transport)
+
+        self._mq_client.username_pw_set(username=self._mqtt_user,
+                                        password=self._mqtt_password)
         self._mq_client.max_inflight_messages_set(mqtt_max_inflight)
         self._mq_client.on_connect = self._on_mqtt_connect(
             self._mqtt_topic, mqtt_qos)

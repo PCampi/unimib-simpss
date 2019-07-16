@@ -2,39 +2,15 @@ version: '3.5'
 
 services:
   emqx:
-    image: erlio/docker-vernemq:1.8.0-alpine
+    image: emqx/emqx:v3.1.2-amd64
     container_name: emqx1
-    networks:
-      - simpss-net
+    restart: always
     ports:
       - 1883:1883
-    environment:
-      DOCKER_VERNEMQ_USER_simpss: simpss24112017
+      - 18083:18083
+    networks: 
+      - simpss-net
 
-  # emqx:
-  #   # build: ./emqx-with-auth
-  #   image: emqx/emqx:v3.2.0-amd64
-  #   container_name: emqx1
-  #   # restart: always
-  #   ports:
-  #     - 1883:1883
-  #     - 18083:18083
-  #     - 8883:8883
-  #   volumes:
-  #     - type: bind
-  #       source: ./emqx-etc/acl.conf
-  #       target: /opt/emqx/etc/acl.conf
-  #     # - type: bind
-  #     #   source: ./emqx-etc/emqx_auth_username.conf
-  #     #   target: /opt/emqx/etc/plugins/emqx_auth_username.conf
-  #   networks: 
-  #     - simpss-net
-  #   environment:
-  #     PLATFORM_ETC_DIR: "./emqx-etc"
-  #     PLATFORM_LOG_DIR: "./emqx-logs"
-  #     EMQX_ALLOW_ANONYMOUS: "false"
-  #     EMQX_LOADED_PLUGINS: "emqx_management,emqx_recon,emqx_retainer,emqx_dashboard,emqx_auth_http,emqx_web_hook,emqx_auth_username"
-  
   zookeeper:
     image: confluentinc/cp-zookeeper:5.2.2
     container_name: zookeeper1

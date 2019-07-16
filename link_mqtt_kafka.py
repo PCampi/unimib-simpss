@@ -15,12 +15,16 @@ def main():
     logger.info("setting up MQTT")
     # MQTT config
     qos = int(os.environ.get("MQTT_QOS", 2))
+    username = str(os.environ.get("MQTT_USER", 'simpss'))
+    password = str(os.environ.get("MQTT_PASSWORD", 'simpss24112017'))
     client_id = str(os.environ.get("MQTT_CLIENT_ID", 'prod1'))
     mqtt_address = str(os.environ.get("MQTT_ADDRESS", 'localhost'))
     mqtt_topic = str(os.environ.get("MQTT_TOPIC", 'simpss'))
     mqtt_max_inflight = int(os.environ.get("MQTT_MAX_INFLIGHT", 100))
     mqtt_payload_key = str(os.environ.get("MQTT_PAYLOAD_KEY", 'id'))
     mqtt_config = {
+        'user': username,
+        'password': password,
         'client-id': client_id,
         'address': mqtt_address,
         'port': 1883,
